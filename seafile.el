@@ -97,16 +97,16 @@
        :parser 'buffer-string
        :sync t
        :success (function*
-      	       (lambda (&key data &allow-other-keys)
-      		 (when data
-      		   (let ((json-object-type 'plist))
-		     (setq repo_list (mapcar 'identity (json-read-from-string data)))
-      		     (dolist (repo repo_list)
-      		       (when (equal library (plist-get repo :name))
-      			 (setq library_id (plist-get repo :id))))))))))
+		 (lambda (&key data &allow-other-keys)
+		   (when data
+		     (let ((json-object-type 'plist))
+		       (setq repo_list (mapcar 'identity (json-read-from-string data)))
+		       (dolist (repo repo_list)
+			 (when (equal library (plist-get repo :name))
+			   (setq library_id (plist-get repo :id))))))))))
     library_id))
 
-(setq my-attachments-dir (seafile/get-library-id "Attachments" host_url host_user host_pass))
+(setq my-attachments-library-id (seafile/get-library-id "Attachments" host_url host_user host_pass))
 
 ;     :status-code '((200 . (lambda (&rest _) (message "Got 200 (OK).")))
 ;	             (201 . (lambda (&rest _) (message "Got 201 (CREATED).")))
