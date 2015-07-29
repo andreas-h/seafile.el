@@ -128,49 +128,49 @@
 ; curl -H "Authorization: Token f2210dacd9c6ccb8133606d94ff8e61d9b477fd" -H 'Accept: application/json; indent=4' https://cloud.seafile.com/api2/repos/99b758e6-91ab-4265-b705-925367374cf0/dir/?p=/
 ; (format-time-string "%Y-%m-%d") gives the current date
 ; Response is vector of plist; "type" == "dir", "name" == (format-time-string ...), "id" = ...
-(request
- (concat host_url "/api2/repos/" library_id "/dir/?p=/")
- :type "GET"
- :headers `(("Authorization" . ,auth_header)
-	    ("Accept" . "application/json; indent=4"))
+(defun seafile/check-for-directory-in-library (target library_id host user pass)
+  "Check if TARGET exists in LIBRARY_ID
+Currently checks only in root of library"
+  (progn
+    (setq found_directory nil)
+    (let ((auth_header (concat "Token " (seafile/get-auth-token host user pass)))
+	  (json-object-type 'plist))
+      (request
+       (concat host_url "/api2/repos/" library_id "/dir/?p=/")
+       :type "GET"
+       :headers `(("Authorization" . ,auth_header)
+		  ("Accept" . "application/json; indent=4"))
+       :parser 'buffer-string
+       :sync t
+       :success (function*
+		 (lambda (&key data &allow-other-keys)
+		   (when data
+		     (setq days_list (mapcar 'identity (json-read-from-string data)))
+		     (dolist (day days_list)
+		       (when (and (equal target (plist-get day :name))
+				  (equal "dir" (plist-get day :type)))
+			 (setq found_directory target))))))
+       :error
+       (function* (lambda (&key error-thrown &allow-other-keys&rest _)
+                    (message "Got error: %S" error-thrown)))
+       :complete (lambda (&rest _) (message "Finished (get daydirs)!"))
+       :status-code '((200 . (lambda (&rest _) (message "Got 200 (OK).")))
+                      (201 . (lambda (&rest _) (message "Got 201 (CREATED).")))
+                      (202 . (lambda (&rest _) (message "Got 202 (ACCEPTED).")))
+                      (301 . (lambda (&rest _) (message "Got 301 (MOVED_PERMANENTLY).")))
+                      (400 . (lambda (&rest _) (message "Got 400 (BAD_request).")))
+                      (403 . (lambda (&rest _) (message "Got 403 (FORBIDDEN).")))
+                      (404 . (lambda (&rest _) (message "Got 404 (NOT_FOUND).")))
+                      (409 . (lambda (&rest _) (message "Got 409 (CONFLICT).")))
+                      (429 . (lambda (&rest _) (message "Got 429 (TOO_MANY_REQUESTS).")))
+                      (440 . (lambda (&rest _) (message "Got 440 (REPO_PASSWD_REQUIRED).")))
+                      (441 . (lambda (&rest _) (message "Got 441 (REPO_PASSWD_MAGIC_REQUIRED).")))
+                      (500 . (lambda (&rest _) (message "Got 500 (INTERNAL_SERVER_ERROR).")))
+                      (520 . (lambda (&rest _) (message "Got 520 (OPERATION_FAILED)."))))))
+       found_directory))
 
- :parser 'buffer-string
- :success
- (function* (lambda (&key data &allow-other-keys)
-              (when data
-		(let ((json-object-type 'plist))
-		  (setq days_list (mapcar 'identity (json-read-from-string data)))
-		  (when (equal nil days_list)
-		        (setq day_directory nil))
-		  (dolist (day days_list)
-		    (when (and (equal (format-time-string "%Y-%m-%d") (plist-get day :name))
-			       (equal "dir" (plist-get day :type)))
-		      (setq day_directory (format-time-string "%Y-%m-%d"))))
-		    )
-		  )
-		)
-	      )
+(setq my-today-directory-path (seafile/check-for-directory-in-library (format-time-string "%Y-%m-%d") my-attachments-library-id host_url host_user host_pass))
 
- :error
- (function* (lambda (&key error-thrown &allow-other-keys&rest _)
-              (message "Got error: %S" error-thrown)))
-
- :complete (lambda (&rest _) (message "Finished (get daydirs)!"))
- :status-code '((200 . (lambda (&rest _) (message "Got 200 (OK).")))
-                (201 . (lambda (&rest _) (message "Got 201 (CREATED).")))
-                (202 . (lambda (&rest _) (message "Got 202 (ACCEPTED).")))
-                (301 . (lambda (&rest _) (message "Got 301 (MOVED_PERMANENTLY).")))
-                (400 . (lambda (&rest _) (message "Got 400 (BAD_request).")))
-                (403 . (lambda (&rest _) (message "Got 403 (FORBIDDEN).")))
-                (404 . (lambda (&rest _) (message "Got 404 (NOT_FOUND).")))
-                (409 . (lambda (&rest _) (message "Got 409 (CONFLICT).")))
-                (429 . (lambda (&rest _) (message "Got 429 (TOO_MANY_REQUESTS).")))
-                (440 . (lambda (&rest _) (message "Got 440 (REPO_PASSWD_REQUIRED).")))
-                (441 . (lambda (&rest _) (message "Got 441 (REPO_PASSWD_MAGIC_REQUIRED).")))
-                (500 . (lambda (&rest _) (message "Got 500 (INTERNAL_SERVER_ERROR).")))
-                (520 . (lambda (&rest _) (message "Got 520 (OPERATION_FAILED)."))))
-
-	    )
 
 ; ----------------------------------------------------------------------
 ; Create directory for today
