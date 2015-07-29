@@ -58,38 +58,78 @@
 ; ----------------------------------------------------------------------
 ; Get authentication token via API
 ; ----------------------------------------------------------------------
- (request
-  (concat host_url "/api2/auth-token/")
-  :type "POST"
-  ; TODO read username and password from variables
-  :data `(("username" . ,host_user)
- 	 ("password" . ,host_pass))
- 
-  :parser 'buffer-string
-  :success
-  (function* (lambda (&key data &allow-other-keys)
-               (when data
- 		(let ((json-object-type 'plist))
- 		  (setq auth_token (plist-get (json-read-from-string data) :token))))))
- 
-  :error
-  (function* (lambda (&key error-thrown &allow-other-keys&rest _)
-               (message "Got error: %S" error-thrown)))
- 
-  :complete (lambda (&rest _) (message "Finished!"))
-  :status-code '((400 . (lambda (&rest _) (message "Got 400.")))
-                 (418 . (lambda (&rest _) (message "Got 418."))))
- 
-  )
+
+ (defun seafile/get-auth-token (host user pass)
+   "Get authentication token from Seafile instance at HOST for USER with PASS"
+   (progn
+     (request
+      (concat host "/api2/auth-token/")
+      :type "POST"
+      :data `(("username" . ,user)
+	      ("password" . ,pass))
+      :parser 'buffer-string
+      :sync t
+      :success (function*
+		(lambda (&key data &allow-other-keys)
+		  (when data
+		    (let ((json-object-type 'plist))
+		      (setq seafile-auth-token
+			    (plist-get (json-read-from-string data) :token)))))))
+     seafile-auth-token))
+
+(seafile/get-auth-token host_url host_user host_pass)
 
 
 ; ----------------------------------------------------------------------
 ; Get library id
 ; ----------------------------------------------------------------------
-(setq auth_header (concat "Token " auth_token))
+(defun seafile/get-library-id (library host user pass)
+  "Get the id of LIBRARY from Seafile HOST using USER and PASS"
+  (progn
+    (setq library_id nil)
+    (let ((auth_header (concat "Token " (seafile/get-auth-token host user pass)))
+	  (json-object-type 'plist))
+      (request
+       (concat host_url "/api2/repos/")
+       :type "GET"
+       :headers `(("Authorization" . ,auth_header)
+      	      ("Accept" . "application/json; indent=4"))
+       :parser 'buffer-string
+       :sync t
+       :success (function*
+      	       (lambda (&key data &allow-other-keys)
+      		 (when data
+      		   (let ((json-object-type 'plist))
+		     (setq repo_list (mapcar 'identity (json-read-from-string data)))
+      		     (dolist (repo repo_list)
+      		       (when (equal library (plist-get repo :name))
+      			 (setq library_id (plist-get repo :id))))))))))
+    library_id))
 
+(setq my-attachments-dir (seafile/get-library-id "Attachments" host_url host_user host_pass))
+
+;     :status-code '((200 . (lambda (&rest _) (message "Got 200 (OK).")))
+;	             (201 . (lambda (&rest _) (message "Got 201 (CREATED).")))
+;                    (202 . (lambda (&rest _) (message "Got 202 (ACCEPTED).")))
+;                    (301 . (lambda (&rest _) (message "Got 301 (MOVED_PERMANENTLY).")))
+;                    (400 . (lambda (&rest _) (message "Got 400 (BAD_request).")))
+;                    (403 . (lambda (&rest _) (message "Got 403 (FORBIDDEN).")))
+;                    (404 . (lambda (&rest _) (message "Got 404 (NOT_FOUND).")))
+;                    (409 . (lambda (&rest _) (message "Got 409 (CONFLICT).")))
+;                    (429 . (lambda (&rest _) (message "Got 429 (TOO_MANY_REQUESTS).")))
+;                    (440 . (lambda (&rest _) (message "Got 440 (REPO_PASSWD_REQUIRED).")))
+;                    (441 . (lambda (&rest _) (message "Got 441 (REPO_PASSWD_MAGIC_REQUIRED).")))
+;                    (500 . (lambda (&rest _) (message "Got 500 (INTERNAL_SERVER_ERROR).")))
+;                    (520 . (lambda (&rest _) (message "Got 520 (OPERATION_FAILED).")))))
+
+; ----------------------------------------------------------------------
+; Check if directory for today exists
+; ----------------------------------------------------------------------
+; curl -H "Authorization: Token f2210dacd9c6ccb8133606d94ff8e61d9b477fd" -H 'Accept: application/json; indent=4' https://cloud.seafile.com/api2/repos/99b758e6-91ab-4265-b705-925367374cf0/dir/?p=/
+; (format-time-string "%Y-%m-%d") gives the current date
+; Response is vector of plist; "type" == "dir", "name" == (format-time-string ...), "id" = ...
 (request
- (concat host_url "/api2/repos/")
+ (concat host_url "/api2/repos/" library_id "/dir/?p=/")
  :type "GET"
  :headers `(("Authorization" . ,auth_header)
 	    ("Accept" . "application/json; indent=4"))
@@ -99,22 +139,23 @@
  (function* (lambda (&key data &allow-other-keys)
               (when data
 		(let ((json-object-type 'plist))
-		  (setq repo_list (mapcar 'identity (json-read-from-string data)))
-		  (dolist (repo  repo_list)
-		    (message (plist-get repo :name))
-		    (when (equal library_name (plist-get repo :name))
-		      (setq library_id (plist-get repo :id)))
+		  (setq days_list (mapcar 'identity (json-read-from-string data)))
+		  (when (equal nil days_list)
+		        (setq day_directory nil))
+		  (dolist (day days_list)
+		    (when (and (equal (format-time-string "%Y-%m-%d") (plist-get day :name))
+			       (equal "dir" (plist-get day :type)))
+		      (setq day_directory (format-time-string "%Y-%m-%d"))))
 		    )
 		  )
 		)
 	      )
-	    )
 
  :error
  (function* (lambda (&key error-thrown &allow-other-keys&rest _)
               (message "Got error: %S" error-thrown)))
 
- :complete (lambda (&rest _) (message "Finished (get repos)!"))
+ :complete (lambda (&rest _) (message "Finished (get daydirs)!"))
  :status-code '((200 . (lambda (&rest _) (message "Got 200 (OK).")))
                 (201 . (lambda (&rest _) (message "Got 201 (CREATED).")))
                 (202 . (lambda (&rest _) (message "Got 202 (ACCEPTED).")))
@@ -129,16 +170,7 @@
                 (500 . (lambda (&rest _) (message "Got 500 (INTERNAL_SERVER_ERROR).")))
                 (520 . (lambda (&rest _) (message "Got 520 (OPERATION_FAILED)."))))
 
- )
-
-
-; ----------------------------------------------------------------------
-; Check if directory for today exists
-; ----------------------------------------------------------------------
-; curl -H "Authorization: Token f2210dacd9c6ccb8133606d94ff8e61d9b477fd" -H 'Accept: application/json; indent=4' https://cloud.seafile.com/api2/repos/99b758e6-91ab-4265-b705-925367374cf0/dir/?p=/
-; (format-time-string "%Y-%m-%d") gives the current date
-; Response is vector of plist; "type" == "dir", "name" == (format-time-string ...), "id" = ...
-
+	    )
 
 ; ----------------------------------------------------------------------
 ; Create directory for today
