@@ -1,0 +1,15 @@
+#+TITLE: seafile.el
+
+This Emacs extension aims to upload single files to a [[https://www.seafile.com/][Seafile]] instance
+and create share links for them.  To be used by a mail client for
+uploading large file attachments in order to not sending the actual
+file via e-mail.  It implements the necessasry parts from the [[http://manual.seafile.com/develop/web_api.html][Web API]]
+of Seafile.
+
+This is my very first take at Elisp programming, so things might be
+ugly.  If you have any suggestions how to improve this code, I'm
+grateful.
+
+Also please not that currently this is not an Emacs extension but
+rather a stand-alone program.  I will re-model it into an extension
+once it does what it's supposed to to.
