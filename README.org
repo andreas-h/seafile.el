@@ -1,10 +1,18 @@
 #+TITLE: seafile.el
 
-This Emacs extension aims to upload single files to a [[https://www.seafile.com/][Seafile]] instance
-and create share links for them.  To be used by a mail client for
-uploading large file attachments in order to not sending the actual
-file via e-mail.  It implements the necessasry parts from the [[http://manual.seafile.com/develop/web_api.html][Web API]]
-of Seafile.
+This Emacs extension aims to implement (parts of) version 2 of the
+[[https://www.seafile.com/][Seafile]] [[http://manual.seafile.com/develop/web_api.html][Web API]].
+
+
+* Motivation
+
+My motivation for this is that I want to be able to upload single
+files to a Seafile instance and create share links for them.  This
+could then be used by a mail client for uploading large file
+attachments in order to not sending the actual file via e-mail.
+
+
+* Disclaimer
 
 This is my very first take at Elisp programming, so things might be
 ugly.  If you have any suggestions how to improve this code, I'm
@@ -13,3 +21,8 @@ grateful.
 Also please not that currently this is not an Emacs extension but
 rather a stand-alone program.  I will re-model it into an extension
 once it does what it's supposed to to.
+
+
+* License
+
+seafile.el is free software under GPL v3. See COPYING file for details.
